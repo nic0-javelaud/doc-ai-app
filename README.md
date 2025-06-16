@@ -11,14 +11,16 @@ This is a tool to help you configure DocAI to extract data from pdfs and output 
 
 First make sure you have Node.js installed. If not you can download it from [here](https://nodejs.org/en/download/).
 
-Then download the project, install the dependencies and start a development server...
+Then download the project, install the dependencies, build the app and start a local preview server...
 
 ```bash
 git clone https://github.com/nic0-javelaud/doc-ai-app.git
 cd doc-ai-app && npm install
-npm run dev -- --open
-
+npm run build
+npm run preview -- --open
 ```
+
+> Once built next time you need to run the app you can just run `npm run preview -- --open` or `npm run dev -- --open` to start a local dev server.
 
 ## Setting your API Key
 
