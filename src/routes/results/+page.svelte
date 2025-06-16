@@ -4,10 +4,8 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Checkbox } from "$lib/components/ui/checkbox/index.js";
     import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
-    import { Badge } from "$lib/components/ui/badge/index.js";
     import { Button } from "$lib/components/ui/button/index.js";
     import * as Accordion from "$lib/components/ui/accordion/index.js";
-    import { ArrowLeft, ArrowRight, CornerDownLeft, Trash } from "lucide-svelte";
     import { _$ } from "@/store.svelte";
     import { marked } from "marked";
     import { toast } from "svelte-sonner";

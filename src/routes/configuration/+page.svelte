@@ -1,8 +1,3 @@
-<!-- <script lang="ts">
-    import { url } from "@/store.svelte.ts";
-</script>
-
-<p>{url.value}</p> -->
 <script lang="ts">
     import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
@@ -244,10 +239,6 @@
                 <span class="ml-2 place-self-center">{progress}</span>
             </div>
         </Dialog.Title>
-      <!-- <Dialog.Description>
-        This action cannot be undone. This will permanently delete your account
-        and remove your data from our servers.
-      </Dialog.Description> -->
     </Dialog.Header>
   </Dialog.Content>
 </Dialog.Root>
