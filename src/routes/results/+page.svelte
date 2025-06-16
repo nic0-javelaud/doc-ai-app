@@ -11,15 +11,21 @@
     import { _$ } from "@/store.svelte";
     import { marked } from "marked";
     import { toast } from "svelte-sonner";
+    import { goto } from "$app/navigation";
     
 
     let ocr_pages = _$.results?.pages;
     let structured_data = _$.results? JSON.parse(_$.results.document_annotation) : null;
 
     const export_data = async () => {
-        await navigator.clipboard.writeText(JSON.stringify(_$.results));
-        console.log("Data copied to clipboard");
-        toast.success("Data copied to clipboard");
+        if(!_$.api_key) {
+            toast.error("Please enter your API key first.");
+            goto("/settings")
+        } else {
+            await navigator.clipboard.writeText(JSON.stringify(_$.results));
+            console.log("Data copied to clipboard");
+            toast.success("Data copied to clipboard");
+        }
     }
     const export_http = () => {
         console.log("Export HTTP");

@@ -119,24 +119,29 @@
     };
 
     const handleSubmit = async () => {
-        console.log(_$.upload);
-        loading = true;
-        if (!_$.upload) {
-            progress = "Uploading file...";
-            await uploadFileMistral();
+        if(!_$.api_key) {
+            toast.error("Please enter your API key first.");
+            goto("/settings")
+        } else {
+            console.log(_$.upload);
+            loading = true;
+            if (!_$.upload) {
+                progress = "Uploading file...";
+                await uploadFileMistral();
+            }
+            if (!_$.upload.signed_url) {
+                progress = "Getting signed URL...";
+                await getSignedURL();
+            }
+            progress = "Processing file through DocAI...";
+            const results = await getDocAiResults();
+            _$.results = results;
+            console.log(results);
+            progress = "Done!";
+            loading = false;
+            toast.success("Document processed successfully! You're redirected to the results tab.");
+            goto("/results");
         }
-        if (!_$.upload.signed_url) {
-            progress = "Getting signed URL...";
-            await getSignedURL();
-        }
-        progress = "Processing file through DocAI...";
-        const results = await getDocAiResults();
-        _$.results = results;
-        console.log(results);
-        progress = "Done!";
-        loading = false;
-        toast.success("Document processed successfully! You're redirected to the results tab.");
-        goto("/results");
     };
 
     $effect(() => {
