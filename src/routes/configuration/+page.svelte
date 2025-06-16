@@ -1,0 +1,248 @@
+<!-- <script lang="ts">
+    import { url } from "@/store.svelte.ts";
+</script>
+
+<p>{url.value}</p> -->
+<script lang="ts">
+    import { Input } from "$lib/components/ui/input/index.js";
+    import { Label } from "$lib/components/ui/label/index.js";
+    import { Checkbox } from "$lib/components/ui/checkbox/index.js";
+    import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
+    import { Badge } from "$lib/components/ui/badge/index.js";
+    import { Button } from "$lib/components/ui/button/index.js";
+    import * as Dialog from "$lib/components/ui/dialog/index.js";
+    import * as Select from "$lib/components/ui/select/index.js";
+    import { ArrowLeft, ArrowRight, CornerDownLeft, ImageUpIcon, LoaderCircleIcon, PlusCircleIcon, Trash, Trash2Icon } from "lucide-svelte";
+    import { _$ } from "@/store.svelte.ts";
+    import { Progress } from "bits-ui";
+    import { goto } from "$app/navigation";
+    import { toast } from "svelte-sonner";
+    const fieldTypeOptions = ["string", "number", "boolean", "schema"];
+
+    let progress = $state();
+    let loading = $state(false);
+
+    const clearDocument = () => {
+        _$.document = null;
+        _$.files = null;
+        _$.upload = null;
+    };
+
+    const convertConfigToPayload = () => {
+        const payload = {};
+        _$.configuration.schemas.forEach(schema => {
+            payload[schema.name] = schema.fields.reduce((acc, field) => {
+                acc[field.name] = {"title": field.name, "description": field.description};
+                if (field.isArray) {
+                    acc[field.name].type = "array";
+                    acc[field.name].items = {"type": field.type};
+                } else {
+                    acc[field.name].type = field.type;
+                }
+                return acc;
+            }, {});
+        });
+        return payload;
+    };
+
+    const uploadFileMistral = async () => {
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${_$.api_key}`);
+        const body = new FormData();
+        body.append("purpose", "ocr");
+        body.append("file", _$.files[0], _$.files[0].name);
+        const response = await fetch("https://api.mistral.ai/v1/files", {
+            method: "POST",
+            headers,
+            body,
+            redirect: "follow"
+        });
+        const data = await response.json();
+        console.log(data);
+        _$.upload = data;
+        return data;
+    };
+
+    const getSignedURL = async () => {
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${_$.api_key}`);
+        const response = await fetch(`https://api.mistral.ai/v1/files/${_$.upload.id}/url?expiry=24`, {
+            method: "GET",
+            headers,
+            redirect: "follow"
+        });
+        const data = await response.json();
+        console.log(data);
+        _$.upload.signed_url = data.url;
+        return data;
+    };
+
+    const getDocAiResults = async () => {
+        console.log(convertConfigToPayload().root);
+        
+        const headers = new Headers();
+        headers.append("Content-Type", "application/json");
+        headers.append("Authorization", `Bearer ${_$.api_key}`);
+
+        const body = JSON.stringify({
+        "model": "mistral-ocr-latest",
+        "document": {
+            "document_url": _$.upload.signed_url
+            // "document_url": "https://mistralaifilesapiprodswe.blob.core.windows.net/fine-tune/8e2706f0-4a1e-4b39-ad42-13a199f7365f/6340e568-a546-4c41-9dee-1fbeb80493e1/e0cbeaaf697c47e6b7209b0bb0b22305.pdf?se=2025-06-14T19%3A41%3A37Z&sp=r&sv=2025-05-05&sr=b&sig=7nOTmFeS9xgTF1kionz4zsvOVw0chf%2B5mltYWheGLIg%3D"
+        },
+        "document_annotation_format": {
+            "type": "json_schema",
+            "json_schema": {
+            "schema": {
+                "properties": convertConfigToPayload().root,
+                "required": [],
+                "title": "DocumentAnnotation",
+                "type": "object",
+                "additionalProperties": false
+            },
+            "name": "document_annotation",
+            "strict": true
+            }
+        },
+        "include_image_base64": false
+        });
+
+        const requestOptions = {
+            method: "POST",
+            headers,
+            body,
+            redirect: "follow"
+        };
+
+        const res = await fetch("https://api.mistral.ai/v1/ocr", requestOptions)
+        return await res.json(); 
+    };
+
+    const handleSubmit = async () => {
+        console.log(_$.upload);
+        loading = true;
+        if (!_$.upload) {
+            progress = "Uploading file...";
+            await uploadFileMistral();
+        }
+        if (!_$.upload.signed_url) {
+            progress = "Getting signed URL...";
+            await getSignedURL();
+        }
+        progress = "Processing file through DocAI...";
+        const results = await getDocAiResults();
+        _$.results = results;
+        console.log(results);
+        progress = "Done!";
+        loading = false;
+        toast.success("Document processed successfully! You're redirected to the results tab.");
+        goto("/results");
+    };
+
+    $effect(() => {
+        console.log(_$.files);
+        if (_$.files && _$.files.length > 0) {
+            _$.document = URL.createObjectURL(_$.files[0]);
+        }
+    });
+
+</script>
+<main class="grid flex-1 gap-4 overflow-auto p-4 grid-cols-3">
+    <ScrollArea class="h-[800px] w-full">
+        <div class="flex flex-col gap-6">
+            <!-- Action panel -->
+            {#each _$.configuration.schemas  as schema, index}
+                <fieldset class="grid gap-6 rounded-lg border p-4">
+                    {#if schema.name == "root"}
+                        <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {schema.name} </legend>
+                    {:else}
+                        <div class="flex justify-between gap-6 items-center">
+                            <Input id="schema" type="text" placeholder="Type schema name here" bind:value={schema.name} />
+                            <Trash2Icon onclick={()=>configuration.schemas.splice(index, 1)} class="size-5 cursor-pointer text-muted-foreground m-auto" /> 
+                        </div>
+                    {/if}
+                    {#each schema.fields as field, index}
+                        <fieldset class="grid gap-4 rounded-lg border p-4">
+                            <div class="grid grid-cols-5 gap-4">
+                                <Label for="name" class="col-span-2">Field name</Label>
+                                <Label for="type" class="col-span-2">Field type</Label>
+                                <Label for="isArray" class="text-center">Is Array</Label>
+
+                                <Input id="name" class="col-span-2" type="text" placeholder="Field name" bind:value={field.name} />
+                                <Select.Root class="" bind:value={field.type} type="single">
+                                    <Select.Trigger class="col-span-2 w-full"><span class="capitalize">{field.type}</span></Select.Trigger>
+                                    <Select.Content>
+                                        {#each fieldTypeOptions as option}
+                                            {#if option == "schema"}
+                                                <Select.Item disabled value={option}><span class="capitalize">{option}</span></Select.Item>
+                                            {:else}
+                                                <Select.Item value={option}><span class="capitalize">{option}</span></Select.Item>
+                                            {/if}
+                                            
+                                        {/each}
+                                    </Select.Content>
+                                </Select.Root>
+                                <Checkbox id="isArray" class="place-self-center m-auto" bind:checked={field.isArray} />
+                            </div> 
+                            <Label for="description">Description <span class="italic text-sm font-normal text-muted-foreground">(optional)</span></Label>
+                            <Input id="description" type="text" placeholder="Field description" bind:value={field.description} />
+                            <Trash2Icon onclick={()=>schema.fields.splice(index, 1)} class="size-4 cursor-pointer text-muted-foreground place-self-end" /> 
+
+                        </fieldset>
+                    {/each}
+                    <Button onclick={()=>schema.fields.push({name: "", type: "string", isArray:false, description: ""})} variant="outline" size="sm">
+                        <PlusCircleIcon />
+                        Add new field
+                    </Button>
+                </fieldset>
+            {/each}
+            <Button disabled onclick={()=>configuration.schemas.push({name: "", parent: null, fields: []})} variant="outline" size="sm">
+                <PlusCircleIcon />
+                Add new schema
+            </Button>
+            <Button onclick={handleSubmit} size="sm">
+                <PlusCircleIcon />
+                Submit
+            </Button>
+        </div>
+    </ScrollArea>
+    <ScrollArea
+        class="bg-muted/50 relative flex h-[800px] min-h-[50vh] flex-col rounded-xl p-4 col-span-2"
+        >        
+        {#if _$.document}
+            <embed
+                src={_$.document}
+                type="application/pdf"
+                height="100%"
+                width="100%"
+            />   
+        {:else}
+            <div class="flex flex-col h-full items-center justify-center self gap-1 text-muted-foreground">
+                <ImageUpIcon class="size-6" />
+                <p onclick={()=>fileSelector.click()} class="text-sm">Select a document below</p>
+                <Input id="picture" class="w-96 mt-2" bind:files={_$.files} type="file" />
+            </div>
+        {/if}
+        
+        <Button type="submit" onclick={clearDocument} size="sm" class="absolute bottom-3 right-4 ml-auto gap-1.5">
+            <Trash2Icon class="size-3.5" />
+        </Button>
+    </ScrollArea>
+</main>
+
+<Dialog.Root bind:open={loading}>
+  <Dialog.Content>
+    <Dialog.Header>
+        <Dialog.Title>
+            <div class="flex animate-pulse">
+                <LoaderCircleIcon class="size-6 animate-spin" />
+                <span class="ml-2 place-self-center">{progress}</span>
+            </div>
+        </Dialog.Title>
+      <!-- <Dialog.Description>
+        This action cannot be undone. This will permanently delete your account
+        and remove your data from our servers.
+      </Dialog.Description> -->
+    </Dialog.Header>
+  </Dialog.Content>
+</Dialog.Root>

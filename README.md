@@ -1,22 +1,28 @@
-# sv
+# Document AI Helper
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+This is a tool to help you configure DocAI to extract data from pdfs and output it in a structured format. It is still very much a prototype at this point and missing a lot of features.
 
-## Creating a project
+## Use cases
 
-If you're seeing this, you've probably already done this step. Congrats!
+    - Perform adhoc document extraction through a GUI.
+    - Provide a side-by-side environment to demo markdown/json data.
+
+## Getting started
+
+First make sure you have Node.js installed. If not you can download it from [here](https://nodejs.org/en/download/).
+
+Then start by downloading the project and installing the dependencies...
 
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+# download project locally.
+git clone https://github.com/
+# Install dependencies
+cd doc-ai-app && npm install
 ```
 
-## Developing
+## Serving the app locally
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Once the dependencies are installed, start a development server:
 
 ```bash
 npm run dev
@@ -24,15 +30,5 @@ npm run dev
 # or start the server and open the app in a new browser tab
 npm run dev -- --open
 ```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
