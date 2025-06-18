@@ -12,31 +12,94 @@
     import { Progress } from "bits-ui";
     import { goto } from "$app/navigation";
     import { toast } from "svelte-sonner";
-    const fieldTypeOptions = ["string", "number", "boolean", "schema"];
+    let fieldTypeOptions = ["string", "number", "boolean"];
 
+    let schemas = $derived([..._$.configuration.schemas.root, ..._$.configuration.schemas.custom]);
+    let customOptions = $derived(_$.configuration.schemas.custom.map(schema => schema.name));
     let progress = $state();
     let loading = $state(false);
 
     const clearDocument = () => {
         _$.document = null;
-        _$.files = null;
+        _$.files.adhoc = null;
         _$.upload = null;
     };
 
-    const convertConfigToPayload = () => {
-        const payload = {};
-        _$.configuration.schemas.forEach(schema => {
-            payload[schema.name] = schema.fields.reduce((acc, field) => {
-                acc[field.name] = {"title": field.name, "description": field.description};
-                if (field.isArray) {
-                    acc[field.name].type = "array";
-                    acc[field.name].items = {"type": field.type};
-                } else {
-                    acc[field.name].type = field.type;
-                }
+    const convertConfigToSchema = () => {
+        console.log(`Schemas:`, _$.configuration.schemas);
+        
+        const schema = {
+            "required": [],
+            "title": "DocumentAnnotation",
+            "type": "object",
+            "additionalProperties": false
+        };
+        
+        if ( _$.configuration.schemas.custom.length > 0 ) {
+            const defs = _$.configuration.schemas.custom.reduce((acc, current) => {
+                acc[current.name] = {
+                    "properties": {},
+                    "required": [],
+                    "title": current.name,
+                    "type": "object",
+                    "additionalProperties": false
+                };
+                acc[current.name].properties = current.fields.reduce((all, field) => {
+                    all[field.name] = {"title": field.name, "description": field.description};
+                    if ( customOptions.includes(field.type) ) {
+                        all[field.name].type = "array";
+                        all[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                    } else if (field.isArray) {
+                        all[field.name].type = "array";
+                        all[field.name].items = {"type": field.type};
+                    } else {
+                        all[field.name].type = field.type;
+                    }
+                    return all;
+                },{});
                 return acc;
             }, {});
-        });
+            schema["$defs"] = defs;
+        }  
+
+        const properties = _$.configuration.schemas.root[0].fields.reduce((acc, field) => {                
+            acc[field.name] = {"title": field.name, "description": field.description};
+
+            if ( customOptions.includes(field.type) ) {
+                acc[field.name].type = "array";
+                acc[field.name].items = {"$ref": `#/$defs/${field.type}`};
+            } else if (field.isArray) {
+                acc[field.name].type = "array";
+                acc[field.name].items = {"type": field.type};
+            } else {
+                acc[field.name].type = field.type;
+            }
+            return acc;
+        }, {});
+        schema.properties = properties;
+        
+        return schema;
+        
+
+        return schema;
+    };
+    const convertConfigToPayload = () => {
+        let payload = {
+            "model": "mistral-ocr-latest",
+            "document": {
+                "document_url": _$.upload.signed_url
+            },
+            "document_annotation_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "schema": convertConfigToSchema(),
+                    "name": "document_annotation",
+                    "strict": true
+                }
+            },
+            "include_image_base64": false
+        };
+
         return payload;
     };
 
@@ -45,7 +108,7 @@
         headers.append("Authorization", `Bearer ${_$.api_key}`);
         const body = new FormData();
         body.append("purpose", "ocr");
-        body.append("file", _$.files[0], _$.files[0].name);
+        body.append("file", _$.files.adhoc[0], _$.files.adhoc[0].name);
         const response = await fetch("https://api.mistral.ai/v1/files", {
             method: "POST",
             headers,
@@ -72,36 +135,13 @@
         return data;
     };
 
-    const getDocAiResults = async () => {
-        console.log(convertConfigToPayload().root);
-        
+    const getDocAiResults = async () => {        
         const headers = new Headers();
         headers.append("Content-Type", "application/json");
         headers.append("Authorization", `Bearer ${_$.api_key}`);
 
-        const body = JSON.stringify({
-        "model": "mistral-ocr-latest",
-        "document": {
-            "document_url": _$.upload.signed_url
-            // "document_url": "https://mistralaifilesapiprodswe.blob.core.windows.net/fine-tune/8e2706f0-4a1e-4b39-ad42-13a199f7365f/6340e568-a546-4c41-9dee-1fbeb80493e1/e0cbeaaf697c47e6b7209b0bb0b22305.pdf?se=2025-06-14T19%3A41%3A37Z&sp=r&sv=2025-05-05&sr=b&sig=7nOTmFeS9xgTF1kionz4zsvOVw0chf%2B5mltYWheGLIg%3D"
-        },
-        "document_annotation_format": {
-            "type": "json_schema",
-            "json_schema": {
-            "schema": {
-                "properties": convertConfigToPayload().root,
-                "required": [],
-                "title": "DocumentAnnotation",
-                "type": "object",
-                "additionalProperties": false
-            },
-            "name": "document_annotation",
-            "strict": true
-            }
-        },
-        "include_image_base64": false
-        });
-
+        const body = JSON.stringify( convertConfigToPayload() );
+        
         const requestOptions = {
             method: "POST",
             headers,
@@ -114,6 +154,7 @@
     };
 
     const handleSubmit = async () => {
+        console.log(convertConfigToSchema());
         if(!_$.api_key) {
             toast.error("Please enter your API key first.");
             goto("/settings")
@@ -140,9 +181,9 @@
     };
 
     $effect(() => {
-        console.log(_$.files);
-        if (_$.files && _$.files.length > 0) {
-            _$.document = URL.createObjectURL(_$.files[0]);
+        if (_$.files.adhoc && _$.files.adhoc.length > 0) {
+            console.log(_$.files.adhoc);
+            _$.document = URL.createObjectURL(_$.files.adhoc[0]);
         }
     });
 
@@ -151,14 +192,14 @@
     <ScrollArea class="h-[800px] w-full">
         <div class="flex flex-col gap-6">
             <!-- Action panel -->
-            {#each _$.configuration.schemas  as schema, index}
+            {#each schemas  as schema, index}
                 <fieldset class="grid gap-6 rounded-lg border p-4">
                     {#if schema.name == "root"}
                         <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {schema.name} </legend>
                     {:else}
                         <div class="flex justify-between gap-6 items-center">
                             <Input id="schema" type="text" placeholder="Type schema name here" bind:value={schema.name} />
-                            <Trash2Icon onclick={()=>configuration.schemas.splice(index, 1)} class="size-5 cursor-pointer text-muted-foreground m-auto" /> 
+                            <Trash2Icon onclick={()=> _$.configuration.schemas.custom.splice(index -1 , 1)} class="size-5 cursor-pointer text-muted-foreground m-auto" /> 
                         </div>
                     {/if}
                     {#each schema.fields as field, index}
@@ -173,12 +214,14 @@
                                     <Select.Trigger class="col-span-2 w-full"><span class="capitalize">{field.type}</span></Select.Trigger>
                                     <Select.Content>
                                         {#each fieldTypeOptions as option}
-                                            {#if option == "schema"}
-                                                <Select.Item disabled value={option}><span class="capitalize">{option}</span></Select.Item>
-                                            {:else}
-                                                <Select.Item value={option}><span class="capitalize">{option}</span></Select.Item>
-                                            {/if}
-                                            
+                                            <Select.Item value={option}><span class="capitalize">{option}</span></Select.Item>
+                                        {/each}
+                                        {#if _$.configuration.schemas.custom.length > 0}
+                                            <Select.Separator/>
+                                            <Select.Label>Custom schemas</Select.Label>
+                                        {/if}
+                                        {#each _$.configuration.schemas.custom as option}
+                                            <Select.Item value={option.name}><span class="capitalize">{option.name}</span></Select.Item>
                                         {/each}
                                     </Select.Content>
                                 </Select.Root>
@@ -196,7 +239,7 @@
                     </Button>
                 </fieldset>
             {/each}
-            <Button disabled onclick={()=>configuration.schemas.push({name: "", parent: null, fields: []})} variant="outline" size="sm">
+            <Button onclick={()=>_$.configuration.schemas.custom.push({name: "", parent: null, fields: []})} variant="outline" size="sm">
                 <PlusCircleIcon />
                 Add new schema
             </Button>
@@ -220,7 +263,7 @@
             <div class="flex flex-col h-full items-center justify-center self gap-1 text-muted-foreground">
                 <ImageUpIcon class="size-6" />
                 <p onclick={()=>fileSelector.click()} class="text-sm">Select a document below</p>
-                <Input id="picture" class="w-96 mt-2" bind:files={_$.files} type="file" />
+                <Input id="picture" class="w-96 mt-2" bind:files={_$.files.adhoc} type="file" />
             </div>
         {/if}
         

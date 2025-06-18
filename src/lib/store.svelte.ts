@@ -8,19 +8,22 @@ export const _$ = $state({
         demo: null,
     },
     configuration: {
-        schemas: [{
-            name: "root",
-            parent: null,
-            fields: [
-                {
-                    name: "",
-                    type: "string",
-                    isArray: false, 
-                    description: ""
-                }
-            ],
-            results:null
-        }],
+        schemas: {
+            root: [{
+                name: "root",
+                parent: null,
+                fields: [
+                    {
+                        name: "",
+                        type: "string",
+                        isArray: false, 
+                        description: ""
+                    }
+                ],
+                results:null
+            }],
+            custom: [],
+        },
         properties: [],
     },
     upload: null,
