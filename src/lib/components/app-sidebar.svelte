@@ -32,14 +32,9 @@
         ],
         demo: [
             {
-                name: "Structured data",
+                name: "Side-by-side",
                 url: "/demo",
                 icon: FileJson2Icon,
-            },
-            {
-                name: "Markdown",
-                url: "/markdown",
-                icon: FileType2Icon,
             }
         ]
     }; 

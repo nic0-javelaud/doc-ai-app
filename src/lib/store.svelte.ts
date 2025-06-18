@@ -3,7 +3,10 @@ export const url = $state({value:"/"});
 export const _$ = $state({
     api_key: localStorage.getItem("api_key") || "",
     document: "",
-    files: null,
+    files: {
+        adhoc: null,
+        demo: null,
+    },
     configuration: {
         schemas: [{
             name: "root",
