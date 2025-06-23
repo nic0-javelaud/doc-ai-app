@@ -79,9 +79,6 @@
         schema.properties = properties;
         
         return schema;
-        
-
-        return schema;
     };
     const convertConfigToPayload = () => {
         let payload = {
