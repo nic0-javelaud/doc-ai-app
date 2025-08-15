@@ -168,12 +168,19 @@
             }
             progress = "Processing file through DocAI...";
             const results = await getDocAiResults();
-            _$.results = results;
-            console.log(results);
-            progress = "Done!";
-            loading = false;
-            toast.success("Document processed successfully! You're redirected to the results tab.");
-            goto("/results");
+            if(results.object == "error") {
+                toast.error(results.message);
+                loading = false;
+                return;
+            } else {
+                 _$.results = results;
+                console.log(results);
+                progress = "Done!";
+                loading = false;
+                toast.success("Document processed successfully! You're redirected to the results tab.");
+                goto("/results");
+            }
+           
         }
     };
 
