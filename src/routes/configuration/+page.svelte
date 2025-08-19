@@ -7,7 +7,7 @@
     import { Switch } from "$lib/components/ui/switch/index.js";
     import * as Dialog from "$lib/components/ui/dialog/index.js";
     import * as Select from "$lib/components/ui/select/index.js";
-    import { ArrowLeft, ArrowRight, CornerDownLeft, ImageUpIcon, LoaderCircleIcon, PlusCircleIcon, Trash, Trash2Icon } from "lucide-svelte";
+    import { ArrowLeft, ArrowRight, CornerDownLeft, ImageUpIcon, LoaderCircleIcon, PlusCircleIcon, SaveIcon, Trash, Trash2Icon } from "lucide-svelte";
     import { _$ } from "@/store.svelte.ts";
     import { Progress } from "bits-ui";
     import { goto } from "$app/navigation";
@@ -18,6 +18,9 @@
     let customOptions = $derived(_$.configuration.schemas.custom.map(schema => schema.name));
     let progress = $state();
     let loading = $state(false);
+    let showSaveLoadDialog = $state(false);
+    let configName = $state("");
+    let localConfigs = $state(localStorage.getItem("configs") ? JSON.parse(localStorage.getItem("configs")) : []);
 
     const clearDocument = () => {
         _$.document = null;
@@ -196,10 +199,35 @@
         }
     };
 
-    const loadConfiguration = ( config ) => {
-        const configToLoad = JSON.parse(localStorage.getItem(`config_${config}`));
+    const saveConfiguration = () => {
+        if (configName === "") {
+            toast.error("Please enter a configuration name.");
+            return;
+        }
+        if (!localConfigs.includes(configName)) { 
+            localStorage.setItem("configs", JSON.stringify([...localConfigs, configName]));
+            localConfigs.push(configName);
+        }
+        localStorage.setItem(`config_${configName}`, JSON.stringify(_$.configuration));
+        console.log(`Saved configuration ${configName}`);
+        toast.success(`Configuration ${configName} saved successfully!`);
+        showSaveLoadDialog = false;
+    };
+
+    const loadConfiguration = ( configName ) => {
+        const configToLoad = JSON.parse(localStorage.getItem(`config_${configName}`));
         _$.configuration = configToLoad;
-        console.log(`Loaded configuration ${config}`);
+        console.log(`Loaded configuration ${configName}`);
+        toast.success(`Configuration ${configName} loaded successfully!`);
+        showSaveLoadDialog = false;
+    };
+
+    const deleteConfiguration = ( configName ) => {
+        localStorage.removeItem(`config_${configName}`);
+        localConfigs = localConfigs.filter(config => config !== configName);
+        localStorage.setItem("configs", JSON.stringify(localConfigs));
+        console.log(`Deleted configuration ${configName}`);
+        toast.success(`Configuration ${configName} deleted successfully!`);
     };
 
     $effect(() => {
@@ -218,7 +246,7 @@
                 <Switch bind:checked={_$.ocrOnly} class="cursor-pointer" />
             </div>
             <Button variant="outline" disabled class="cursor-pointer">Suggest schema</Button>
-            <Button variant="outline" disabled class="cursor-pointer">Save/Load</Button>
+            <Button variant="outline" onclick={()=>showSaveLoadDialog = true} class="cursor-pointer">Save/Load</Button>
         </div>
         <ScrollArea class="h-[725px] w-full">
             <div class="flex flex-col gap-6">
@@ -308,6 +336,7 @@
     </ScrollArea>
 </main>
 
+<!-- Job in progress dialog - Show current states -->
 <Dialog.Root bind:open={loading}>
   <Dialog.Content>
     <Dialog.Header>
@@ -318,5 +347,36 @@
             </div>
         </Dialog.Title>
     </Dialog.Header>
+  </Dialog.Content>
+</Dialog.Root>
+
+<!-- Save/Load dialog -->
+<Dialog.Root bind:open={showSaveLoadDialog}>
+  <Dialog.Content>
+    <Dialog.Header>
+        <Dialog.Title>Save/Load configuration</Dialog.Title>
+        <Dialog.Description>
+            Save new configuration below or load an existing one.
+        </Dialog.Description>
+        <div class="flex flex-col gap-4">
+            <div class=" mt-4 flex gap-4 justify-between">
+                <Input id="configName" type="text" placeholder="Configuration name" bind:value={configName} />
+                <SaveIcon onclick={saveConfiguration} class="size-5 cursor-pointer text-primary m-auto hover:text-muted-foreground"/>
+                <!-- <Button onclick={saveConfiguration}>Save</Button> -->
+            </div>
+            <div class="font-medium text-sm mt-4">Config saved locally</div>
+            <ScrollArea class="h-[196px]">
+                <div class="flex flex-col gap-4">
+                    {#each localConfigs as config}
+                        <div class="flex gap-4 justify-between">
+                            <Button class="grow" variant="outline" onclick={()=>loadConfiguration(config)}>{config}</Button>
+                            <Trash2Icon onclick={()=>deleteConfiguration(config)} class="size-5 cursor-pointer text-muted m-auto hover:text-destructive" />
+                        </div>
+                    {/each}
+                </div>
+            </ScrollArea>
+        </div>
+    </Dialog.Header>
+
   </Dialog.Content>
 </Dialog.Root>
