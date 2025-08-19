@@ -1,5 +1,4 @@
 <script lang="ts">
-    
     import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
     import { Checkbox } from "$lib/components/ui/checkbox/index.js";
@@ -73,12 +72,13 @@
         
         return schema;
     };
+
     const convertConfigToPayload = () => {
         let payload = {
             "model": "mistral-ocr-latest",
             "document": {
-                // "document_url": _$.upload.signed_url
-                "document_url": "url"
+                "document_url": _$.upload.signed_url
+                // "document_url": "url"
             },
             "document_annotation_format": {
                 "type": "json_schema",
@@ -94,26 +94,65 @@
         return payload;
     };
 
+
+    const saveAsJson = (filename, dataObjToWrite) => {
+        const blob = new Blob([JSON.stringify(dataObjToWrite)], { type: "text/json" });
+        const link = document.createElement("a");
+
+        link.download = filename;
+        link.href = window.URL.createObjectURL(blob);
+        link.dataset.downloadurl = ["text/json", link.download, link.href].join(":");
+
+        const evt = new MouseEvent("click", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        link.dispatchEvent(evt);
+        link.remove()
+    };
+
+    const saveAsText = (filename, dataObjToWrite) => {
+        const blob = new Blob([dataObjToWrite], { type: "text/plain" });
+        const link = document.createElement("a");
+
+        link.download = filename;
+        link.href = window.URL.createObjectURL(blob);
+        link.dataset.downloadurl = ["text/plain", link.download, link.href].join(":");
+
+        const evt = new MouseEvent("click", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        link.dispatchEvent(evt);
+        link.remove()
+    };
+
     const export_data = async () => {
         if(!_$.api_key) {
             toast.error("Please enter your API key first.");
             goto("/settings")
         } else {
-            await navigator.clipboard.writeText(JSON.stringify(_$.results));
-            console.log("Data copied to clipboard");
-            toast.success("Data copied to clipboard");
+            saveAsJson("results.json", _$.results);
+            toast.success("JSON downloaded successfully");
         }
-    }
+    };
+
     const export_http = async () => {
         console.log("Export HTTP");
         const payload = convertConfigToPayload();
         const curl = `curl -X POST https://api.mistral.ai/v1/ocr -H "Content-Type: application/json" -H "Authorization: Bearer ${_$.api_key}" -d '${JSON.stringify(payload)}'`;
         await navigator.clipboard.writeText(JSON.stringify(curl));
-    }
+        saveAsText("curl.txt", curl);
+        toast.success("Curl command copied to clipboard");
+    };
     // const export_python = () => {
     //     console.log("Export Python");
     // }
-    
+
     
 </script>
 <main class="grid flex-1 gap-4 overflow-auto p-4 grid-cols-3">
