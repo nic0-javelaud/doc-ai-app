@@ -69,9 +69,14 @@
         const properties = _$.configuration.schemas.root[0].fields.reduce((acc, field) => {                
             acc[field.name] = {"title": field.name, "description": field.description};
 
+            // If field type is a custom schema, then checks if it's as an array of objects or simple nested object
             if ( customOptions.includes(field.type) ) {
-                acc[field.name].type = "array";
-                acc[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                if( field.isArray ) { // If field is an array of objects
+                    acc[field.name].type = "array";
+                    acc[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                } else { // If field is a simple nested object
+                    acc[field.name]["$ref"] = `#/$defs/${field.type}`;
+                }
             } else if (field.isArray) {
                 acc[field.name].type = "array";
                 acc[field.name].items = {"type": field.type};

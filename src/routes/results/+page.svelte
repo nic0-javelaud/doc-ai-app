@@ -244,6 +244,30 @@
                                         {/each}
                                     </fieldset>
                                 {/if}
+                            {:else if typeof value === "object"}
+                                <fieldset class="grid gap-6 rounded-lg border p-4">
+                                    <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {field} </legend>
+                                    {#each Object.entries(value) as [subfield, subvalue]}
+                                        {#if typeof subvalue === "string"}
+                                            <div class="grid gap-3">
+                                                <Label for="top-p">{subfield}</Label>
+                                                <Input id="top-p" value={subvalue} type="text" placeholder="" />
+                                            </div>
+                                        <!-- The field is a boolean - Show value as checkbox -->
+                                        {:else if typeof subvalue === "boolean"}
+                                            <div class="grid gap-3">
+                                                <Label for="top-p">{subfield}</Label>
+                                                <Checkbox checked={subvalue} id="top-p" placeholder="" />
+                                            </div>
+                                        <!-- The field is a number - Show value in number input -->
+                                        {:else if typeof subvalue === "number"}
+                                            <div class="grid gap-3">
+                                                <Label for="top-p">{subfield}</Label>
+                                                <Input id="top-p" value={subvalue} type="number" placeholder="" />
+                                            </div>
+                                        {/if}
+                                    {/each}
+                                </fieldset>
                             {/if}
                         {/each}
                         {/if}
