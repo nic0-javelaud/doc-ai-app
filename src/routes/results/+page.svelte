@@ -147,12 +147,11 @@
         const curl = `curl -X POST https://api.mistral.ai/v1/ocr -H "Content-Type: application/json" -H "Authorization: Bearer ${_$.api_key}" -d '${JSON.stringify(payload)}'`;
         await navigator.clipboard.writeText(JSON.stringify(curl));
         saveAsText("curl.txt", curl);
-        toast.success("Curl command copied to clipboard");
+        toast.success("Curl command downloaded successfully");
     };
     // const export_python = () => {
     //     console.log("Export Python");
     // }
-
     
 </script>
 <main class="grid flex-1 gap-4 overflow-auto p-4 grid-cols-3">
