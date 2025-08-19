@@ -27,6 +27,7 @@ export const _$ = $state({
         properties: [],
     },
     upload: null,
+    ocrOnly: false
 });
 
 // JSONSchema(

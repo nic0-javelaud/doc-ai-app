@@ -18,12 +18,12 @@
     let customOptions = $derived(_$.configuration.schemas.custom.map(schema => schema.name));
     let progress = $state();
     let loading = $state(false);
-    let ocrOnly = $state(false);
 
     const clearDocument = () => {
         _$.document = null;
         _$.files.adhoc = null;
         _$.upload = null;
+        _$.ocrOnly = false;
     };
 
     const convertConfigToSchema = () => {
@@ -82,21 +82,32 @@
         return schema;
     };
     const convertConfigToPayload = () => {
-        let payload = {
-            "model": "mistral-ocr-latest",
-            "document": {
-                "document_url": _$.upload.signed_url
-            },
-            "document_annotation_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "schema": convertConfigToSchema(),
-                    "name": "document_annotation",
-                    "strict": true
-                }
-            },
-            "include_image_base64": false
-        };
+        let payload;
+        if(_$.ocrOnly) {
+            payload = {
+                "model": "mistral-ocr-latest",
+                "document": {
+                    "document_url": _$.upload.signed_url
+                },
+                "include_image_base64": true
+            };
+        } else {
+            payload = {
+                "model": "mistral-ocr-latest",
+                "document": {
+                    "document_url": _$.upload.signed_url
+                },
+                "document_annotation_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "schema": convertConfigToSchema(),
+                        "name": "document_annotation",
+                        "strict": true
+                    }
+                },
+                "include_image_base64": false
+            };
+        }
 
         return payload;
     };
@@ -185,6 +196,12 @@
         }
     };
 
+    const loadConfiguration = ( config ) => {
+        const configToLoad = JSON.parse(localStorage.getItem(`config_${config}`));
+        _$.configuration = configToLoad;
+        console.log(`Loaded configuration ${config}`);
+    };
+
     $effect(() => {
         if (_$.files.adhoc && _$.files.adhoc.length > 0) {
             console.log(_$.files.adhoc);
@@ -198,7 +215,7 @@
         <div class="flex justify-between gap-4 items-center">
             <div class="flex gap-4 place-self-center border rounded-lg px-4 py-2">
                 <span class="text-sm font-medium shadow-xs place-self-center">OCR Only</span>
-                <Switch bind:checked={ocrOnly} class="cursor-pointer" />
+                <Switch bind:checked={_$.ocrOnly} class="cursor-pointer" />
             </div>
             <Button variant="outline" disabled class="cursor-pointer">Suggest schema</Button>
             <Button variant="outline" disabled class="cursor-pointer">Save/Load</Button>
@@ -206,59 +223,61 @@
         <ScrollArea class="h-[725px] w-full">
             <div class="flex flex-col gap-6">
                 <!-- Action panel -->
-                {#each schemas  as schema, index}
-                    <fieldset class="grid gap-6 rounded-lg border p-4">
-                        {#if schema.name == "root"}
-                            <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {schema.name} </legend>
-                        {:else}
-                            <div class="flex justify-between gap-6 items-center">
-                                <Input id="schema" type="text" placeholder="Type schema name here" bind:value={schema.name} />
-                                <Trash2Icon onclick={()=> _$.configuration.schemas.custom.splice(index -1 , 1)} class="size-5 cursor-pointer text-muted-foreground m-auto" /> 
-                            </div>
-                        {/if}
-                        {#each schema.fields as field, index}
-                            <fieldset class="grid gap-4 rounded-lg border p-4">
-                                <div class="grid grid-cols-5 gap-4">
-                                    <Label for="name" class="col-span-2">Field name</Label>
-                                    <Label for="type" class="col-span-2">Field type</Label>
-                                    <Label for="isArray" class="text-center">Is Array</Label>
+                {#if !_$.ocrOnly}
+                    {#each schemas  as schema, index}
+                        <fieldset class="grid gap-6 rounded-lg border p-4">
+                            {#if schema.name == "root"}
+                                <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {schema.name} </legend>
+                            {:else}
+                                <div class="flex justify-between gap-6 items-center">
+                                    <Input id="schema" type="text" placeholder="Type schema name here" bind:value={schema.name} />
+                                    <Trash2Icon onclick={()=> _$.configuration.schemas.custom.splice(index -1 , 1)} class="size-5 cursor-pointer text-muted-foreground m-auto" /> 
+                                </div>
+                            {/if}
+                            {#each schema.fields as field, index}
+                                <fieldset class="grid gap-4 rounded-lg border p-4">
+                                    <div class="grid grid-cols-5 gap-4">
+                                        <Label for="name" class="col-span-2">Field name</Label>
+                                        <Label for="type" class="col-span-2">Field type</Label>
+                                        <Label for="isArray" class="text-center">Is Array</Label>
 
-                                    <Input id="name" class="col-span-2" type="text" placeholder="Field name" bind:value={field.name} />
-                                    <Select.Root class="" bind:value={field.type} type="single">
-                                        <Select.Trigger class="col-span-2 w-full"><span class="capitalize">{field.type}</span></Select.Trigger>
-                                        <Select.Content>
-                                            {#each fieldTypeOptions as option}
-                                                <Select.Item value={option}><span class="capitalize">{option}</span></Select.Item>
-                                            {/each}
-                                            {#if _$.configuration.schemas.custom.length > 0}
-                                                <Select.Separator/>
-                                                <Select.Label>Custom schemas</Select.Label>
-                                            {/if}
-                                            {#each _$.configuration.schemas.custom as option}
-                                                <Select.Item value={option.name}><span class="capitalize">{option.name}</span></Select.Item>
-                                            {/each}
-                                        </Select.Content>
-                                    </Select.Root>
-                                    <Checkbox id="isArray" class="place-self-center m-auto" bind:checked={field.isArray} />
-                                </div> 
-                                <Label for="description">Description <span class="italic text-sm font-normal text-muted-foreground">(optional)</span></Label>
-                                <Input id="description" type="text" placeholder="Field description" bind:value={field.description} />
-                                <Trash2Icon onclick={()=>schema.fields.splice(index, 1)} class="size-4 cursor-pointer text-muted-foreground place-self-end" /> 
+                                        <Input id="name" class="col-span-2" type="text" placeholder="Field name" bind:value={field.name} />
+                                        <Select.Root class="" bind:value={field.type} type="single">
+                                            <Select.Trigger class="col-span-2 w-full"><span class="capitalize">{field.type}</span></Select.Trigger>
+                                            <Select.Content>
+                                                {#each fieldTypeOptions as option}
+                                                    <Select.Item value={option}><span class="capitalize">{option}</span></Select.Item>
+                                                {/each}
+                                                {#if _$.configuration.schemas.custom.length > 0}
+                                                    <Select.Separator/>
+                                                    <Select.Label>Custom schemas</Select.Label>
+                                                {/if}
+                                                {#each _$.configuration.schemas.custom as option}
+                                                    <Select.Item value={option.name}><span class="capitalize">{option.name}</span></Select.Item>
+                                                {/each}
+                                            </Select.Content>
+                                        </Select.Root>
+                                        <Checkbox id="isArray" class="place-self-center m-auto" bind:checked={field.isArray} />
+                                    </div> 
+                                    <Label for="description">Description <span class="italic text-sm font-normal text-muted-foreground">(optional)</span></Label>
+                                    <Input id="description" type="text" placeholder="Field description" bind:value={field.description} />
+                                    <Trash2Icon onclick={()=>schema.fields.splice(index, 1)} class="size-4 cursor-pointer text-muted-foreground place-self-end" /> 
 
-                            </fieldset>
-                        {/each}
-                        <Button onclick={()=>schema.fields.push({name: "", type: "string", isArray:false, description: ""})} variant="outline" size="sm">
-                            <PlusCircleIcon />
-                            Add new field
-                        </Button>
-                    </fieldset>
-                {/each}
-                <Button onclick={()=>_$.configuration.schemas.custom.push({name: "", parent: null, fields: []})} variant="outline" size="sm">
-                    <PlusCircleIcon />
-                    Add new schema
-                </Button>
-                <Button onclick={handleSubmit} size="sm">
-                    <PlusCircleIcon />
+                                </fieldset>
+                            {/each}
+                            <Button onclick={()=>schema.fields.push({name: "", type: "string", isArray:false, description: ""})} variant="outline" size="sm">
+                                <PlusCircleIcon />
+                                Add new field
+                            </Button>
+                        </fieldset>
+                    {/each}
+                    <Button onclick={()=>_$.configuration.schemas.custom.push({name: "", parent: null, fields: []})} variant="outline" size="sm">
+                        <PlusCircleIcon />
+                        Add new schema
+                    </Button>
+                {/if}
+                <Button onclick={handleSubmit} size="sm" class="cursor-pointer">
+                    <!-- <PlusCircleIcon /> -->
                     Submit
                 </Button>
             </div>
