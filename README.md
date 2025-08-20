@@ -45,15 +45,11 @@ It's a bit wonky but you need to drop the json files in the `json` folder and th
 ## Version 1.1 (Latest)
 ### New Features & Improvements
 
-**Enhanced API Error Handling**: Fixed error handling for smoother API interactions, with clearer on-screen notifications.
-
-**Save/Load Configurations**: Save extraction job setups to local storage and reload them later for efficiency.
-
-**AI-Powered Suggestions**: Leverage Medium 3 to auto-suggest extraction configurations.
-
-**OCR-Only Mode**: Added a toggle for OCR-only jobs (no extraction).
-
-**Improved Exports**: Results now download as files (replacing clipboard copy).
+- **Enhanced API Error Handling**: Fixed error handling for smoother API interactions, with clearer on-screen notifications.
+- **Save/Load Configurations**: Save extraction job setups to local storage and reload them later for efficiency.
+- **AI-Powered Suggestions**: Leverage Medium 3 to auto-suggest extraction configurations.
+- **OCR-Only Mode**: Added a toggle for OCR-only jobs (no extraction).
+- **Improved Exports**: Results now download as files (replacing clipboard copy).
 
 ### UI/UX Updates
 Reorganized schema config section to include:
@@ -64,14 +60,14 @@ Reorganized schema config section to include:
 ## Version 1.0.1
 ### Quality-of-Life Updates
 
-**On-Screen Notifications**: Real-time feedback for actions (e.g., job completion, errors).
-**Curl Command Export**: Copy ready-to-use Curl commands to clipboard for API testing.
+- **On-Screen Notifications**: Real-time feedback for actions (e.g., job completion, errors).
+- **Curl Command Export**: Copy ready-to-use Curl commands to clipboard for API testing.
 
 ## Version 1.0 (Initial Release)
 ### Core Features
 
-**Ad-Hoc Extraction Setup**: Configure jobs via a dedicated screen.
-**Schema Management**: Add/delete attributes (define types, arrays, descriptions) and custom schemas.
-**Result Visualization**: Side-by-side comparison of **Markdown** and **structured data** outputs.
-**Demo Environment**: Test with local folders containing JSON files + documents.
-**Data Export**: Copy raw JSON results to clipboard (updated in v1.1 to file downloads).
+- **Ad-Hoc Extraction Setup**: Configure jobs via a dedicated screen.
+- **Schema Management**: Add/delete attributes (define types, arrays, descriptions) and custom schemas.
+- **Result Visualization**: Side-by-side comparison of **Markdown** and **structured data** outputs.
+- **Demo Environment**: Test with local folders containing JSON files + documents.
+- **Data Export**: Copy raw JSON results to clipboard (updated in v1.1 to file downloads).
