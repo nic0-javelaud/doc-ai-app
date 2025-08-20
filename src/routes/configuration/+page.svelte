@@ -5,6 +5,7 @@
     import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Switch } from "$lib/components/ui/switch/index.js";
+    import { Badge } from "$lib/components/ui/badge/index.js";
     import * as Dialog from "$lib/components/ui/dialog/index.js";
     import * as Select from "$lib/components/ui/select/index.js";
     import { ArrowLeft, ArrowRight, CornerDownLeft, ImageUpIcon, LoaderCircleIcon, PlusCircleIcon, SaveIcon, Trash, Trash2Icon } from "lucide-svelte";
@@ -14,7 +15,7 @@
     import { toast } from "svelte-sonner";
     let fieldTypeOptions = ["string", "number", "boolean"];
 
-    let schemas = $derived([..._$.configuration.schemas.root, ..._$.configuration.schemas.custom]);
+    let schemas = $derived(_$.configuration.schemas ? [..._$.configuration.schemas.root, ..._$.configuration.schemas.custom] : []);
     let customOptions = $derived(_$.configuration.schemas.custom.map(schema => schema.name));
     let progress = $state();
     let loading = $state(false);
@@ -49,10 +50,15 @@
                     "additionalProperties": false
                 };
                 acc[current.name].properties = current.fields.reduce((all, field) => {
+                    acc[current.name].required.push(field.name); // Add current field to the list of required fields
                     all[field.name] = {"title": field.name, "description": field.description};
                     if ( customOptions.includes(field.type) ) {
-                        all[field.name].type = "array";
-                        all[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                        if( field.isArray ) { // If field is an array of objects
+                            all[field.name].type = "array";
+                            all[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                        } else { // If field is a simple nested object
+                            all[field.name]["$ref"] = `#/$defs/${field.type}`;
+                        }
                     } else if (field.isArray) {
                         all[field.name].type = "array";
                         all[field.name].items = {"type": field.type};
@@ -66,7 +72,8 @@
             schema["$defs"] = defs;
         }  
 
-        const properties = _$.configuration.schemas.root[0].fields.reduce((acc, field) => {                
+        const properties = _$.configuration.schemas.root[0].fields.reduce((acc, field) => {    
+            schema.required.push(field.name); // Add current field to the list of required fields for the root schema            
             acc[field.name] = {"title": field.name, "description": field.description};
 
             // If field type is a custom schema, then checks if it's as an array of objects or simple nested object
@@ -168,7 +175,7 @@
 
         const res = await fetch("https://api.mistral.ai/v1/ocr", requestOptions)
         return await res.json(); 
-    };
+    };        
 
     const handleSubmit = async () => {
         console.log(convertConfigToSchema());
@@ -201,6 +208,270 @@
                 goto("/results");
             }
            
+        }
+    };                                                                                                                                       
+
+    function parseObject(obj, parentName = "root", schemaTemp = { root: [{ name: "root", parent: null, fields: [], results: null }], custom: [] }) {
+        for (const key in obj) {
+            const isArray = Array.isArray(obj[key]);
+            const isObject = typeof obj[key] === 'object' && !isArray;
+
+            if (isArray) {
+                handleArray(key, obj[key], parentName, schemaTemp);
+            } else if (isObject) {
+                handleObject(key, obj[key], parentName, schemaTemp);
+            } else {
+                handlePrimitive(key, obj[key], parentName, schemaTemp);
+            }
+        }
+
+        // Deduplicate schemaTemp.custom
+        const uniqueSchemas = [];
+        const schemaMap = new Map();
+
+        schemaTemp.custom.forEach(schema => {
+            if (!schemaMap.has(schema.name)) {
+                schemaMap.set(schema.name, schema);
+                uniqueSchemas.push(schema);
+            } else {
+                // Merge fields if the schema already exists
+                const existingSchema = schemaMap.get(schema.name);
+                existingSchema.fields.push(...schema.fields);
+            }
+        });
+
+        schemaTemp.custom = uniqueSchemas;
+
+        return schemaTemp;
+    }
+
+    function handleArray(key, array, parentName, schemaTemp) {
+        console.log(key, "array");
+
+        // Add field to parent schema
+        addFieldToParentSchema(key, key, Array.isArray(array), parentName, schemaTemp);
+
+        const arrayItem = array[0];
+        if (typeof arrayItem === 'object') {
+            // Create a new schema for the array item
+            schemaTemp.custom.push({
+                name: key,
+                parent: parentName,
+                fields: []
+            });
+            // Recursively parse the object
+            parseObject(arrayItem, key, schemaTemp);
+        } else {
+            // Add field to parent schema for primitive array items
+            schemaTemp.custom.push({
+                name: key,
+                parent: parentName,
+                fields: [{
+                    name: key,
+                    type: typeof arrayItem,
+                    isArray: false,
+                    description: ""
+                }]
+            });
+        }
+    }
+
+    function handleObject(key, obj, parentName, schemaTemp) {
+        console.log(key, "object");
+
+        // Add field to parent schema
+        addFieldToParentSchema(key, key, false, parentName, schemaTemp);
+
+        // Create a new schema for the object
+        schemaTemp.custom.push({
+            name: key,
+            parent: parentName,
+            fields: []
+        });
+
+        // Recursively parse the object
+        parseObject(obj, key, schemaTemp);
+    }
+
+    function handlePrimitive(key, value, parentName, schemaTemp) {
+        console.log(key, "primitive");
+
+        // Add field to parent schema
+        addFieldToParentSchema(key, typeof value, false, parentName, schemaTemp);
+    }
+
+    function addFieldToParentSchema(name, type, isArray, parentName, schemaTemp) {
+        if (parentName === "root") {
+            schemaTemp.root[0].fields.push({
+                name,
+                type,
+                isArray,
+                description: ""
+            });
+        } else {
+            const parentSchema = schemaTemp.custom.find(schema => schema.name === parentName);
+            if (parentSchema) {
+                parentSchema.fields.push({
+                    name,
+                    type,
+                    isArray,
+                    description: ""
+                });
+            }
+        }
+    }
+
+    const llmSuggestSchema = async ( documentType ) => {
+        const instructions = `
+            Your task is to analyze the attached document and design a structured JSON schema for extracting its key information. The schema must specify the data type (between string, number, or boolean) for each attribute and indicate whether it is a single value or an array.
+            Requirements:
+                Use nested schemas to group related data logically (e.g., a passenger object with attributes like name, seat, etc.).
+                For repeated or multi-entry data (e.g., a list of passengers), define the nested schema and include it as an array attribute (e.g., passengers: [passenger]).
+                Limit nesting to a maximum of 3 levels to ensure clarity and scalability.
+                The schema should be practical for automated extraction.
+
+            Output Format:
+                Provide your answer in JSON format with two top-level attributes:
+                    schema: The proposed schema for extraction.
+                    example: A sample output demonstrating how the extracted data would look using the schema.
+                DO NOT include any other text in your response. Just the JSON.
+            
+            Outpout example:
+            {
+                "booking": {
+                    "reference": "string",
+                    "totalPrice": "number",
+                    "currency": "string",
+                    "url": "string"
+                },
+                "flights": [
+                    {
+                    "departure": {
+                        "time": "string",
+                        "airport": "string",
+                        "city": "string"
+                    },
+                    "arrival": {
+                        "time": "string",
+                        "airport": "string",
+                        "city": "string",
+                        "terminal": "string"
+                    },
+                    "operator": "string",
+                    "flightNumber": "string",
+                    "aircraft": "string",
+                    "duration": "string",
+                    "class": "string",
+                    "baggage": {
+                        "handBaggage": "number",
+                        "smallBag": "number",
+                        "checkedBaggage": "number"
+                    },
+                    "transfer": {
+                        "time": "string",
+                        "terminal": "string"
+                    },
+                    "meals": [
+                        {
+                        "type": "string",
+                        "quantity": "number"
+                        }
+                    ]
+                    }
+                ],
+                "passengers": [
+                    {
+                    "code": "string",
+                    "name": "string",
+                    "ticketNumber": "string",
+                    "missingDetails": "boolean"
+                    }
+                ]
+            }
+        `;
+        const prompt = {
+            "model": "mistral-medium-latest",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": instructions},
+                        {"type": null}
+                    ]
+                }
+            ]
+        };
+        if ( documentType == "pdf" ) {
+            prompt.messages[0].content[1].type = "document_url";
+            prompt.messages[0].content[1].document_url = `${_$.upload.signed_url}`;
+        } else {
+            prompt.messages[0].content[1].type = "image_url";
+            prompt.messages[0].content[1].image_url = { "url": _$.upload.signed_url };
+        }
+        
+        const headers = new Headers();
+        headers.append("Content-Type", "application/json");
+        headers.append("Authorization", `Bearer ${_$.api_key}`);
+
+        const requestOptions = {
+            method: "POST",
+            headers,
+            body: JSON.stringify( prompt ),
+            redirect: "follow"
+        };
+        const res = await fetch("https://api.mistral.ai/v1/chat/completions", requestOptions)
+        return await res.json();
+    };
+
+    const handleGetSuggestion = async () => {
+        if(!_$.api_key) {
+            toast.error("Please enter your API key first.");
+            goto("/settings")
+        } else {
+            loading = true;
+            // Check the MIME type of the uploaded file
+            const file = _$.files.adhoc[0];
+            const mimeType = file.type;
+
+            if (!_$.upload) {
+                progress = "Uploading file...";
+                await uploadFileMistral();
+            }
+            if (!_$.upload.signed_url) {
+                progress = "Getting signed URL...";
+                await getSignedURL();
+            }
+
+            progress = "Sending file to LLM for suggestions...";
+            let results;
+
+            if (mimeType.startsWith('image/')) {
+                // Handle image files
+                results = await llmSuggestSchema(`image`);
+            } else if (mimeType === 'application/pdf') {
+                // Handle PDF files
+                results = await llmSuggestSchema(`pdf`);
+             } else {
+                toast.error("Unsupported file type.");
+                loading = false;
+                return; // Exit the function if the file type is not supported
+            }
+
+            if (results.object == "error") {
+                toast.error(results.message);
+                loading = false;
+                return;
+            } else {
+                const content = results.choices[0].message.content.replaceAll("```json", "").replaceAll("```", "");
+                console.log(content);
+                const data = JSON.parse(content);
+                console.log(data);
+                const suggestedSchemas = parseObject(data.schema);
+                _$.configuration.schemas = suggestedSchemas;
+                progress = "Done!";
+                loading = false;
+                toast.success("Document analyzed successfully!");
+            }
         }
     };
 
@@ -244,14 +515,19 @@
 
 </script>
 <main class="grid flex-1 gap-4 overflow-auto p-4 grid-cols-3">
-    <div class="flex flex-col justify-between gap-4">
-        <div class="flex justify-between gap-4 items-center">
-            <div class="flex gap-4 place-self-center border rounded-lg px-4 py-2">
-                <span class="text-sm font-medium shadow-xs place-self-center">OCR Only</span>
+    <div class="flex flex-col gap-4">
+        <div class="flex justify-between gap-2 items-center">
+            <div class="flex gap-2 place-self-center border rounded-lg px-2 py-2 text-sm">
+                <span class="text-xs font-medium shadow-xs place-self-center">OCR Only</span>
                 <Switch bind:checked={_$.ocrOnly} class="cursor-pointer" />
             </div>
-            <Button variant="outline" disabled class="cursor-pointer">Suggest schema</Button>
-            <Button variant="outline" onclick={()=>showSaveLoadDialog = true} class="cursor-pointer">Save/Load</Button>
+            <Button variant="outline" onclick={handleGetSuggestion} class="cursor-pointer text-sm">
+                Suggest schema
+                <Badge variant="secondary" class="bg-teal-500 text-white italic text-xs" >
+                    alpha
+                </Badge>
+            </Button>
+            <Button variant="outline" onclick={()=>showSaveLoadDialog = true} class="cursor-pointer text-sm">Save/Load</Button>
         </div>
         <ScrollArea class="h-[725px] w-full">
             <div class="flex flex-col gap-6">

@@ -1,17 +1,13 @@
 <script lang="ts">
-    import { Input } from "$lib/components/ui/input/index.js";
-    import { Label } from "$lib/components/ui/label/index.js";
-    import { Checkbox } from "$lib/components/ui/checkbox/index.js";
     import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
     import { Button } from "$lib/components/ui/button/index.js";
     import * as Accordion from "$lib/components/ui/accordion/index.js";
+    import NestedField from "$lib/components/nested-field.svelte";
     import { _$ } from "@/store.svelte";
     import { marked } from "marked";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
-    let fieldTypeOptions = ["string", "number", "boolean"];
 
-    let schemas = $derived([..._$.configuration.schemas.root, ..._$.configuration.schemas.custom]);
     let customOptions = $derived(_$.configuration.schemas.custom.map(schema => schema.name));
 
     let ocr_pages = _$.results?.pages;
@@ -37,10 +33,17 @@
                     "additionalProperties": false
                 };
                 acc[current.name].properties = current.fields.reduce((all, field) => {
+                    acc[current.name].required.push(field.name); // Add current field to the list of required fields
                     all[field.name] = {"title": field.name, "description": field.description};
                     if ( customOptions.includes(field.type) ) {
-                        all[field.name].type = "array";
-                        all[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                        if( field.isArray ) { // If field is an array of objects
+                            all[field.name].type = "array";
+                            all[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                        } else { // If field is a simple nested object
+                            all[field.name]["$ref"] = `#/$defs/${field.type}`;
+                        }
+                        // all[field.name].type = "array";
+                        // all[field.name].items = {"$ref": `#/$defs/${field.type}`};
                     } else if (field.isArray) {
                         all[field.name].type = "array";
                         all[field.name].items = {"type": field.type};
@@ -54,12 +57,18 @@
             schema["$defs"] = defs;
         }  
 
-        const properties = _$.configuration.schemas.root[0].fields.reduce((acc, field) => {                
+        const properties = _$.configuration.schemas.root[0].fields.reduce((acc, field) => {    
+            schema.required.push(field.name); // Add current field to the list of required fields for the root schema            
             acc[field.name] = {"title": field.name, "description": field.description};
 
+            // If field type is a custom schema, then checks if it's as an array of objects or simple nested object
             if ( customOptions.includes(field.type) ) {
-                acc[field.name].type = "array";
-                acc[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                if( field.isArray ) { // If field is an array of objects
+                    acc[field.name].type = "array";
+                    acc[field.name].items = {"$ref": `#/$defs/${field.type}`};
+                } else { // If field is a simple nested object
+                    acc[field.name]["$ref"] = `#/$defs/${field.type}`;
+                }
             } else if (field.isArray) {
                 acc[field.name].type = "array";
                 acc[field.name].items = {"type": field.type};
@@ -72,24 +81,33 @@
         
         return schema;
     };
-
     const convertConfigToPayload = () => {
-        let payload = {
-            "model": "mistral-ocr-latest",
-            "document": {
-                "document_url": _$.upload.signed_url
-                // "document_url": "url"
-            },
-            "document_annotation_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "schema": convertConfigToSchema(),
-                    "name": "document_annotation",
-                    "strict": true
-                }
-            },
-            "include_image_base64": false
-        };
+        let payload;
+        if(_$.ocrOnly) {
+            payload = {
+                "model": "mistral-ocr-latest",
+                "document": {
+                    "document_url": _$.upload.signed_url
+                },
+                "include_image_base64": true
+            };
+        } else {
+            payload = {
+                "model": "mistral-ocr-latest",
+                "document": {
+                    "document_url": _$.upload.signed_url
+                },
+                "document_annotation_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "schema": convertConfigToSchema(),
+                        "name": "document_annotation",
+                        "strict": true
+                    }
+                },
+                "include_image_base64": false
+            };
+        }
 
         return payload;
     };
@@ -183,93 +201,9 @@
                 <Accordion.Content>
                     <div class="flex flex-col gap-6">
                         {#if structured_data}
-                        {#each Object.entries(structured_data) as [field, value]}
-                            <!-- The field is a string - Show value in text input -->
-                            {#if typeof value === "string"}
-                                <div class="grid gap-3">
-                                <Label for="top-p"><span class="capitalize">{field}</span></Label>
-                                <Input id="top-p" value={value} type="text" placeholder="" />
-                            </div>
-                            <!-- The field is a boolean - Show value as checkbox -->
-                            {:else if typeof value === "boolean"}
-                                <div class="grid gap-3">
-                                    <Label for="top-p capitalize">{field}</Label>
-                                    <Checkbox checked={value} id="top-p" placeholder="" />
-                                </div>
-                            <!-- The field is a number - Show value in number input -->
-                            {:else if typeof value === "number"}
-                                <div class="grid gap-3">
-                                    <Label for="top-p capitalize">{field}</Label>
-                                    <Input id="top-p" value={value} type="number" placeholder="" />
-                                </div>
-                            <!-- The field is an Array - Check if array of values or objects -->
-                            {:else if Array.isArray(value)}
-                                <!-- The field is an Array of objects - Show value in text input -->
-                                {#if typeof value[0] === "object"}
-                                    <fieldset class="grid gap-6 rounded-lg border p-4">
-                                        <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {field} </legend>
-                                        {#each value as entry,index}
-                                            <fieldset class="grid gap-6 rounded-lg border p-4">
-                                            <legend class="-ml-1 px-1 text-sm font-medium">Entry {index + 1} / {value.length} </legend>
-                                                {#each Object.entries(entry) as [subfield, subvalue]}
-                                                    {#if typeof subvalue === "string"}
-                                                        <div class="grid gap-3">
-                                                            <Label for="top-p">{subfield}</Label>
-                                                            <Input id="top-p" value={subvalue} type="text" placeholder="" />
-                                                        </div>
-                                                    <!-- The field is a boolean - Show value as checkbox -->
-                                                    {:else if typeof subvalue === "boolean"}
-                                                        <div class="grid gap-3">
-                                                            <Label for="top-p">{subfield}</Label>
-                                                            <Checkbox checked={subvalue} id="top-p" placeholder="" />
-                                                        </div>
-                                                    <!-- The field is a number - Show value in number input -->
-                                                    {:else if typeof subvalue === "number"}
-                                                        <div class="grid gap-3">
-                                                            <Label for="top-p">{subfield}</Label>
-                                                            <Input id="top-p" value={subvalue} type="number" placeholder="" />
-                                                        </div>
-                                                    {/if}
-                                                {/each}
-                                            </fieldset>
-                                        {/each}
-                                    </fieldset>
-                                {:else}
-                                    <fieldset class="grid gap-6 rounded-lg border p-4">
-                                        <legend class="-ml-1 px-1 text-sm font-medium"> {field} </legend>
-                                        {#each value as item}
-                                            <div class="flex items-center gap-2">
-                                                <Input id="top-p" value={item} type="text" placeholder="" />
-                                            </div>
-                                        {/each}
-                                    </fieldset>
-                                {/if}
-                            {:else if typeof value === "object"}
-                                <fieldset class="grid gap-6 rounded-lg border p-4">
-                                    <legend class="-ml-1 px-1 text-sm font-medium capitalize"> {field} </legend>
-                                    {#each Object.entries(value) as [subfield, subvalue]}
-                                        {#if typeof subvalue === "string"}
-                                            <div class="grid gap-3">
-                                                <Label for="top-p">{subfield}</Label>
-                                                <Input id="top-p" value={subvalue} type="text" placeholder="" />
-                                            </div>
-                                        <!-- The field is a boolean - Show value as checkbox -->
-                                        {:else if typeof subvalue === "boolean"}
-                                            <div class="grid gap-3">
-                                                <Label for="top-p">{subfield}</Label>
-                                                <Checkbox checked={subvalue} id="top-p" placeholder="" />
-                                            </div>
-                                        <!-- The field is a number - Show value in number input -->
-                                        {:else if typeof subvalue === "number"}
-                                            <div class="grid gap-3">
-                                                <Label for="top-p">{subfield}</Label>
-                                                <Input id="top-p" value={subvalue} type="number" placeholder="" />
-                                            </div>
-                                        {/if}
-                                    {/each}
-                                </fieldset>
-                            {/if}
-                        {/each}
+                            {#each Object.entries(structured_data) as [field, value]}
+                                <NestedField field={field} value={value} />
+                            {/each}
                         {/if}
                     </div>
                 </Accordion.Content>
