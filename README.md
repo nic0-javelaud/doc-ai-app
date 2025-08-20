@@ -1,4 +1,4 @@
-# Document AI Helper
+# Document AI Playground - Instructions
 
 This is a tool to help you configure DocAI to extract data from pdfs and output it in a structured format. It is still very much a prototype at this point and missing a lot of features.
 
@@ -46,9 +46,13 @@ It's a bit wonky but you need to drop the json files in the `json` folder and th
 ### New Features & Improvements
 
 **Enhanced API Error Handling**: Fixed error handling for smoother API interactions, with clearer on-screen notifications.
+
 **Save/Load Configurations**: Save extraction job setups to local storage and reload them later for efficiency.
+
 **AI-Powered Suggestions**: Leverage Medium 3 to auto-suggest extraction configurations.
+
 **OCR-Only Mode**: Added a toggle for OCR-only jobs (no extraction).
+
 **Improved Exports**: Results now download as files (replacing clipboard copy).
 
 ### UI/UX Updates
