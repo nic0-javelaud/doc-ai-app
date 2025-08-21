@@ -28,7 +28,7 @@
 
 <svelte:head>
   <link rel="icon" href="favicon.png" />
-  <title>Mistral Doc AI Helper</title>
+  <title>Mistral Doc AI Playground</title>
 </svelte:head>
 
 <Toaster position="top-right" />

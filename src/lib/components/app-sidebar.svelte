@@ -53,7 +53,7 @@
         </div>
         <div class="grid flex-1 text-left leading-tight">
             <span class="truncate font-medium">
-            Document AI Helper
+            Document AI Playground
             </span>
             <!-- <span class="truncate text-xs">Plan</span> -->
         </div>

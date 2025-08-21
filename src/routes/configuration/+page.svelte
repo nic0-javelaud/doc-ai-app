@@ -22,6 +22,7 @@
     let showSaveLoadDialog = $state(false);
     let configName = $state("");
     let localConfigs = $state(localStorage.getItem("configs") ? JSON.parse(localStorage.getItem("configs")) : []);
+    let confirmDialog = $state({show: false, title: "", descritption: "", action: null});
 
     const clearDocument = () => {
         _$.document = null;
@@ -427,6 +428,8 @@
         if(!_$.api_key) {
             toast.error("Please enter your API key first.");
             goto("/settings")
+        } else if (!_$.files.adhoc) {
+            toast.error("Please upload a file first.");
         } else {
             loading = true;
             // Check the MIME type of the uploaded file
@@ -521,13 +524,13 @@
                 <span class="text-xs font-medium shadow-xs place-self-center">OCR Only</span>
                 <Switch bind:checked={_$.ocrOnly} class="cursor-pointer" />
             </div>
-            <Button variant="outline" onclick={handleGetSuggestion} class="cursor-pointer text-sm">
+            <Button variant="outline" onclick={()=> confirmDialog = {show: true, title: "Suggestion still in Alpha", descritption: "This new functionality will use an LLM to suggest a schema for your document. This is still in Alpha, might take a few minutes to complete and may not work as expected. Do you want to proceed?", action: () => { confirmDialog.show =false; handleGetSuggestion()}}} class="cursor-pointer text-sm">
                 Suggest schema
                 <Badge variant="secondary" class="bg-teal-500 text-white italic text-xs" >
                     alpha
                 </Badge>
             </Button>
-            <Button variant="outline" onclick={()=>showSaveLoadDialog = true} class="cursor-pointer text-sm">Save/Load</Button>
+            <Button variant="outline" onclick={()=>showSaveLoadDialog=true} class="cursor-pointer text-sm">Save/Load</Button>
         </div>
         <ScrollArea class="h-[725px] w-full">
             <div class="flex flex-col gap-6">
@@ -658,6 +661,20 @@
             </ScrollArea>
         </div>
     </Dialog.Header>
+  </Dialog.Content>
+</Dialog.Root>
 
+<Dialog.Root  bind:open={confirmDialog.show}>
+  <Dialog.Content class="sm:max-w-[425px]">
+    <Dialog.Header>
+      <Dialog.Title>{confirmDialog.title}</Dialog.Title>
+      <Dialog.Description>
+        {confirmDialog.descritption}
+      </Dialog.Description>
+    </Dialog.Header>
+    <Dialog.Footer>
+      <Button onclick={()=>confirmDialog = {show: false, title: "", descritption: "", action: null}} variant="default">Cancel</Button>
+      <Button onclick={confirmDialog.action} variant="outline">Submit</Button>
+    </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
