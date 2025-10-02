@@ -18,6 +18,7 @@
       '/configuration': ['Adhoc jobs', 'Configuration'],
       '/results' : ['Adhoc jobs', 'Results'],
       '/demo': ['Side-by-side demo', 'Structured data'],
+      '/samples': ['Side-by-side demo', 'Samples'],
       '/markdown': ['Side-by-side demo', 'Markdown']
     };
     bc=breadcrumbs[path];

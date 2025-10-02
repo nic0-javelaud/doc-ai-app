@@ -32,10 +32,16 @@
         ],
         demo: [
             {
+                name: "Samples",
+                url: "/samples",
+                icon: FileJson2Icon,
+            },
+            {
                 name: "Side-by-side",
                 url: "/demo",
                 icon: FileJson2Icon,
             }
+
         ]
     }; 
 </script>
