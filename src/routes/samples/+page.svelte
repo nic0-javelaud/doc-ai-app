@@ -48,7 +48,12 @@
         { value: "medical_claims", label: "Medical Claims", icon: HeartPulse, image: medicalClaim_image, data: medicalClaim_json, highlights: {
             title: "Automate Claims Processing with Document AI",
             description: "For **healthcare providers**, **insurers**, and **administrators**, Document AI streamlines medical claims processing by extracting, validating, and structuring data from complex forms while reducing manual errors and accelerating reimbursements.",
-            key_capabilities: [],
+            key_capabilities: [
+                "Handles Complex Forms: Processes nested fields, tables, and hierarchical data (e.g., patient details, provider charges).",
+                "Detects Checkboxes & Toggles: Interprets selected options (e.g., gender, payment preferences).",
+                "Extracts Lists & Tables: Captures itemized charges (e.g., services, dates, costs) into structured data.",
+                "Spots Fraud: Identifies anomalies like duplicate bills or conflicting dates."
+            ],
             zooming_out: [
                 "**Faster Adjudication**: Auto-populates claims systems with structured data, cutting processing time by up to 80%.",
                 "**Automated Compliance Checks**: Validates required fields (e.g., signatures, itemized bills) and ensures adherence to payer rules.",
@@ -57,7 +62,22 @@
                 "**Human-in-the-Loop**: Escalates edge cases (e.g., unclear handwriting, conflicting details)."
             ]
         }},
-        { value: "handwritting", label: "Handwritting", icon: Signature, image: handritting_image, data: handwritting_json, highlights: {}  },
+        { value: "handwritting", label: "Handwritting", icon: Signature, image: handritting_image, data: handwritting_json, highlights: {
+            title: "Automate Service Order Processing with Document AI",
+            description: "For field service teams, Document AI eliminates manual data entry by intelligently reading handwritten service orders—like the HexaConnect work order—alongside printed forms. It converts handwritten notes, signatures, and tables into structured data, slashing processing time, minimizing errors, and boosting operational efficiency.",
+            key_capabilities: [
+                "**Handwriting & Signature Detection**: Captures handwritten notes and validates signatures for approval.",
+                "**Structured Table Extraction**: Parses labor, parts, and costs into actionable data arrays.",
+                "**Smart Validation**: Confirms work authorization, checks calculations, and flags discrepancies (e.g., missing signatures, tax errors).",
+                "**Context-Aware Extraction**: Pulls only relevant data (e.g., parts/labor used) and links related fields (e.g., service tasks to charges)."
+            ],
+            zooming_out: [
+                "**Accelerate Invoicing**: Cuts processing time by 60% with auto-populated billing data.",
+                "**Automate Checks**: Validates required fields (approvals, totals) and triggers alerts for missing info.",
+                "**Streamline Integrations**: Syncs with ERP/CRM for inventory updates and cost tracking.",
+                "**Reduce Errors**: Detects anomalies to prevent billing disputes and unauthorized work."
+            ]
+        }  },
     ];
     let selection = $state(options[0].value);
     let selected = $derived(options.find((o) => o.value === selection) );
