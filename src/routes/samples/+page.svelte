@@ -49,10 +49,10 @@
             title: "Automate Claims Processing with Document AI",
             description: "For **healthcare providers**, **insurers**, and **administrators**, Document AI streamlines medical claims processing by extracting, validating, and structuring data from complex forms while reducing manual errors and accelerating reimbursements.",
             key_capabilities: [
-                "Handles Complex Forms: Processes nested fields, tables, and hierarchical data (e.g., patient details, provider charges).",
-                "Detects Checkboxes & Toggles: Interprets selected options (e.g., gender, payment preferences).",
-                "Extracts Lists & Tables: Captures itemized charges (e.g., services, dates, costs) into structured data.",
-                "Spots Fraud: Identifies anomalies like duplicate bills or conflicting dates."
+                "**Handles Complex Forms**: Processes nested fields, tables, and hierarchical data (e.g., patient details, provider charges).",
+                "**Detects Checkboxes & Toggles**: Interprets selected options (e.g., gender, payment preferences).",
+                "**Extracts Lists & Tables**: Captures itemized charges (e.g., services, dates, costs) into structured data.",
+                "**Spots Fraud**: Identifies anomalies like duplicate bills or conflicting dates."
             ],
             zooming_out: [
                 "**Faster Adjudication**: Auto-populates claims systems with structured data, cutting processing time by up to 80%.",
