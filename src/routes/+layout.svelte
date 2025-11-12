@@ -5,12 +5,9 @@
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
-  import { injectAnalytics } from '@vercel/analytics/sveltekit'
-
   import { page } from '$app/state';
 
   let bc = $state([null,null]);
-  injectAnalytics({ mode: 'production' });
 
   $effect(() => {
     let path = page.url.pathname;
