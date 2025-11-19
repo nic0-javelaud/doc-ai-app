@@ -30,7 +30,7 @@
                 "**Document Classification**: Automatically identifies document types (e.g., passport, ID card).",
                 "**Flexible Input Support**: Processes both scanned documents and photos with high accuracy.",
                 "**Structured Data Output**: Delivers clean, machine-readable data for seamless validation.",
-                "**Visual Data Extraction**: Uses bounding boxes (BBox) to pinpoint and extract critical fields."
+                "**Visual Data Extraction**: Uses bounding boxes (BBox) for pictures detected via OCR."
             ],
             zooming_out: [
                 // "Cross-check now contextualized data against internal and external databases for identity verification and fraud detection.",
